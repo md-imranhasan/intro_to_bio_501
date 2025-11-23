@@ -164,3 +164,65 @@ Heatmaps
 
 Gene lists for pathway analysis (GSEA, Enrichr, etc.)
 ```
+
+### **01_download_fastq.sh**
+```bash
+#!/bin/bash
+while read SRR; do
+    fasterq-dump --split-files --threads 8 --outdir data/raw_fastq $SRR
+done < SRR_Acc_List.txt
+```
+
+02_fastp_trim.sh
+```bash
+#!/bin/bash
+mkdir -p data/trim_fastp data/qc_fastp
+for f in data/raw_fastq/*.fastq; do
+    base=$(basename "$f" .fastq)
+    fastp -i $f -o data/trim_fastp/${base}.trimmed.fastq \
+          -h data/qc_fastp/${base}.html \
+          -j data/qc_fastp/${base}.json \
+          -w 8
+done
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
