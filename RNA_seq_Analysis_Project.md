@@ -123,3 +123,44 @@ covid_rnaseq_pipeline/
 
 
 
+---
+
+## 🔬 Processing Workflow
+
+1. **Download FASTQ files from SRA**
+2. **Trim adapters using fastp**
+3. **Align reads using HISAT2 (GRCh38)**
+4. **Sort + mark duplicates**
+5. **Remove mitochondrial and rRNA reads**
+6. **Index final BAMs**
+7. **Generate gene-level counts using featureCounts**
+8. **Run DESeq2**
+9. **Visualize results (volcano plots, heatmaps)**
+10. **Export DEGs for pathway analysis**
+
+---
+
+## 🧬 Requirements
+
+- HISAT2
+- SAMtools
+- Picard Tools
+- fastp
+- subread (featureCounts)
+- R + DESeq2 + tidyverse + pheatmap + ggrepel + rtracklayer
+
+Install via:
+
+```bash
+conda env create -f environment/conda_env.yaml
+
+📊 Final Outputs
+
+Differential expression tables (Up / Down / All)
+
+Volcano plots
+
+Heatmaps
+
+Gene lists for pathway analysis (GSEA, Enrichr, etc.)
+```
