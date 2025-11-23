@@ -46,7 +46,7 @@ N = 20 samples
 📌 What You Achieved So Far
 
 You have completed:
-
+``` text
 ✔ FASTQ download
 ✔ QC
 ✔ Trimming
@@ -60,7 +60,7 @@ You have completed:
 ✔ Volcano plots
 ✔ Heatmaps
 ✔ Exported gene lists for pathway analysis
-
+```
 This is a full RNA-seq pipeline.
 
 
