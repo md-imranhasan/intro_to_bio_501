@@ -63,8 +63,21 @@ You have completed:
 ```
 This is a full RNA-seq pipeline.
 
+# COVID-19 Bulk RNA-Seq Pipeline 
 
-GitHub Repository Structure:
+This repository contains a full, reproducible RNA-seq pipeline used to analyze
+COVID-19 PBMC RNA-seq data from GEO/SRA using:
+
+- HISAT2 (alignment)
+- SAMtools + Picard (sorting, deduplication, QC)
+- rRNA + MT removal
+- featureCounts (gene quantification)
+- DESeq2 (differential expression)
+- Volcano plots & heatmaps
+
+---
+
+## 📁 Repository Structure
 
 ``` text
 covid_rnaseq_pipeline/
@@ -107,3 +120,6 @@ covid_rnaseq_pipeline/
     └── software_versions.txt
 
 ```
+
+
+
