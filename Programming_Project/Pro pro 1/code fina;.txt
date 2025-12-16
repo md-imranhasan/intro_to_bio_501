@@ -1,0 +1,457 @@
+import sys
+
+# Set recursion limit higher for potentially deep tracebacks,
+# especially for long global alignments.
+sys.setrecursionlimit(3000)
+
+# --- CONFIGURATION CONSTANTS ---
+# Translation table for codon to protein (Standard Genetic Code)
+CODON_TABLE = {
+    "ATA": "I", "ATC": "I", "ATT": "I", "ATG": "M", "ACA": "T", "ACC": "T", "ACG": "T", "ACT": "T",
+    "AAC": "N", "AAT": "N", "AAA": "K", "AAG": "K", "AGC": "S", "AGT": "S", "AGG": "R", "AGA": "R",
+    "CGA": "R", "CGC": "R", "CGG": "R", "CGT": "R", "CTA": "L", "CTC": "L", "CTG": "L", "CTT": "L",
+    "CCA": "P", "CCC": "P", "CCG": "P", "CCT": "P", "CAC": "H", "CAT": "H", "CAA": "Q", "CAG": "Q",
+    "GAA": "E", "GAG": "E", "GGA": "G", "GGC": "G", "GGG": "G", "GGT": "G", "GTA": "V", "GTC": "V",
+    "GTG": "V", "GTT": "V", "GCA": "A", "GCC": "A", "GCG": "A", "GCT": "A", "GAC": "D", "GAT": "D",
+    "TAA": "*", "TAC": "Y", "TAG": "*", "TAT": "Y", "TCA": "S", "TCC": "S", "TCG": "S", "TCT": "S",
+    "TGC": "C", "TGT": "C", "TGA": "*", "TGG": "W", "TTC": "F", "TTT": "F", "TTA": "L", "TTG": "L",
+}
+
+# Full BLOSUM62 matrix (used for scoring AA-AA matches/mismatches)
+BLOSUM62 = {
+    "A": {"A": 4, "R": -1, "N": -2, "D": -2, "C": 0, "Q": -1, "E": -1, "G": 0, "H": -2, "I": -1, "L": -1, "K": -1, "M": -1, "F": -2, "P": -1, "S": 1, "T": 0, "W": -3, "Y": -2, "V": 0, "B": -2, "Z": -1, "X": 0, "*": -4},
+    "R": {"A": -1, "R": 5, "N": 0, "D": -2, "C": -3, "Q": 1, "E": 0, "G": -2, "H": 0, "I": -3, "L": -2, "K": 2, "M": -1, "F": -3, "P": -2, "S": -1, "T": -1, "W": -3, "Y": -2, "V": -3, "B": -1, "Z": 0, "X": -1, "*": -4},
+    "N": {"A": -2, "R": 0, "N": 6, "D": 1, "C": -3, "Q": 0, "E": 0, "G": 0, "H": 1, "I": -3, "L": -3, "K": 0, "M": -2, "F": -3, "P": -2, "S": 1, "T": 0, "W": -4, "Y": -2, "V": -3, "B": 3, "Z": 0, "X": -1, "*": -4},
+    "D": {"A": -2, "R": -2, "N": 1, "D": 6, "C": -3, "Q": 0, "E": 2, "G": -1, "H": -1, "I": -3, "L": -4, "K": -1, "M": -3, "F": -3, "P": -1, "S": 0, "T": -1, "W": -4, "Y": -3, "V": -3, "B": 4, "Z": 1, "X": -1, "*": -4},
+    "C": {"A": 0, "R": -3, "N": -3, "D": -3, "C": 9, "Q": -3, "E": -4, "G": -3, "H": -3, "I": -1, "L": -1, "K": -3, "M": -1, "F": -2, "P": -3, "S": -1, "T": -1, "W": -2, "Y": -2, "V": -1, "B": -3, "Z": -3, "X": -2, "*": -4},
+    "Q": {"A": -1, "R": 1, "N": 0, "D": 0, "C": -3, "Q": 5, "E": 2, "G": -2, "H": 0, "I": -3, "L": -2, "K": 1, "M": 0, "F": -3, "P": -1, "S": 0, "T": -1, "W": -2, "Y": -1, "V": -2, "B": 0, "Z": 3, "X": -1, "*": -4},
+    "E": {"A": -1, "R": 0, "N": 0, "D": 2, "C": -4, "Q": 2, "E": 5, "G": -2, "H": 0, "I": -3, "L": -3, "K": 1, "M": -2, "F": -3, "P": -1, "S": 0, "T": -1, "W": -3, "Y": -2, "V": -2, "B": 1, "Z": 4, "X": -1, "*": -4},
+    "G": {"A": 0, "R": -2, "N": 0, "D": -1, "C": -3, "Q": -2, "E": -2, "G": 6, "H": -2, "I": -4, "L": -4, "K": -2, "M": -3, "F": -3, "P": -2, "S": 0, "T": -2, "W": -2, "Y": -3, "V": -3, "B": -1, "Z": -2, "X": -1, "*": -4},
+    "H": {"A": -2, "R": 0, "N": 1, "D": -1, "C": -3, "Q": 0, "E": 0, "G": -2, "H": 8, "I": -3, "L": -3, "K": -1, "M": -2, "F": -1, "P": -2, "S": -1, "T": -2, "W": -2, "Y": 2, "V": -3, "B": 0, "Z": 0, "X": -1, "*": -4},
+    "I": {"A": -1, "R": -3, "N": -3, "D": -3, "C": -1, "Q": -3, "E": -3, "G": -4, "H": -3, "I": 4, "L": 2, "K": -3, "M": 1, "F": 0, "P": -3, "S": -2, "T": -1, "W": -3, "Y": -1, "V": 3, "B": -3, "Z": -3, "X": -1, "*": -4},
+    "L": {"A": -1, "R": -2, "N": -3, "D": -4, "C": -1, "Q": -2, "E": -3, "G": -4, "H": -3, "I": 2, "L": 4, "K": -2, "M": 2, "F": 0, "P": -3, "S": -2, "T": -1, "W": -2, "Y": -1, "V": 1, "B": -4, "Z": -3, "X": -1, "*": -4},
+    "K": {"A": -1, "R": 2, "N": 0, "D": -1, "C": -3, "Q": 1, "E": 1, "G": -2, "H": -1, "I": -3, "L": -2, "K": 5, "M": -1, "F": -3, "P": -1, "S": 0, "T": -1, "W": -3, "Y": -2, "V": -2, "B": 0, "Z": 1, "X": -1, "*": -4},
+    "M": {"A": -1, "R": -1, "N": -2, "D": -3, "C": -1, "Q": 0, "E": -2, "G": -3, "H": -2, "I": 1, "L": 2, "K": -1, "M": 5, "F": 0, "P": -2, "S": -1, "T": -1, "W": -1, "Y": -1, "V": 1, "B": -3, "Z": -1, "X": -1, "*": -4},
+    "F": {"A": -2, "R": -3, "N": -3, "D": -3, "C": -2, "Q": -3, "E": -3, "G": -3, "H": -1, "I": 0, "L": 0, "K": -3, "M": 0, "F": 6, "P": -4, "S": -2, "T": -2, "W": 1, "Y": 3, "V": -1, "B": -3, "Z": -3, "X": -1, "*": -4},
+    "P": {"A": -1, "R": -2, "N": -2, "D": -1, "C": -3, "Q": -1, "E": -1, "G": -2, "H": -2, "I": -3, "L": -3, "K": -1, "M": -2, "F": -4, "P": 7, "S": -1, "T": -1, "W": -4, "Y": -3, "V": -2, "B": -2, "Z": -1, "X": -2, "*": -4},
+    "S": {"A": 1, "R": -1, "N": 1, "D": 0, "C": -1, "Q": 0, "E": 0, "G": 0, "H": -1, "I": -2, "L": -2, "K": 0, "M": -1, "F": -2, "P": -1, "S": 4, "T": 1, "W": -3, "Y": -2, "V": -2, "B": 0, "Z": 0, "X": 0, "*": -4},
+    "T": {"A": 0, "R": -1, "N": 0, "D": -1, "C": -1, "Q": -1, "E": -1, "G": -2, "H": -2, "I": -1, "L": -1, "K": -1, "M": -1, "F": -2, "P": -1, "S": 1, "T": 5, "W": -2, "Y": -2, "V": 0, "B": -1, "Z": -1, "X": 0, "*": -4},
+    "W": {"A": -3, "R": -3, "N": -4, "D": -4, "C": -2, "Q": -2, "E": -3, "G": -2, "H": -2, "I": -3, "L": -2, "K": -3, "M": -1, "F": 1, "P": -4, "S": -3, "T": -2, "W": 11, "Y": 2, "V": -3, "B": -4, "Z": -3, "X": -2, "*": -4},
+    "Y": {"A": -2, "R": -2, "N": -2, "D": -3, "C": -2, "Q": -1, "E": -2, "G": -3, "H": 2, "I": -1, "L": -1, "K": -2, "M": -1, "F": 3, "P": -3, "S": -2, "T": -2, "W": 2, "Y": 7, "V": -1, "B": -3, "Z": -2, "X": -1, "*": -4},
+    "V": {"A": 0, "R": -3, "N": -3, "D": -3, "C": -1, "Q": -2, "E": -2, "G": -3, "H": -3, "I": 3, "L": 1, "K": -2, "M": 1, "F": -1, "P": -2, "S": -2, "T": 0, "W": -3, "Y": -1, "V": 4, "B": -3, "Z": -2, "X": -1, "*": -4},
+    "B": {"A": -2, "R": -1, "N": 3, "D": 4, "C": -3, "Q": 0, "E": 1, "G": -1, "H": 0, "I": -3, "L": -4, "K": 0, "M": -3, "F": -3, "P": -2, "S": 0, "T": -1, "W": -4, "Y": -3, "V": -3, "B": 4, "Z": 1, "X": -1, "*": -4},
+    "Z": {"A": -1, "R": 0, "N": 0, "D": 1, "C": -3, "Q": 3, "E": 4, "G": -2, "H": 0, "I": -3, "L": -3, "K": 1, "M": -1, "F": -3, "P": -1, "S": 0, "T": -1, "W": -3, "Y": -2, "V": -2, "B": 1, "Z": 4, "X": -1, "*": -4},
+    "X": {"A": 0, "R": -1, "N": -1, "D": -1, "C": -2, "Q": -1, "E": -1, "G": -1, "H": -1, "I": -1, "L": -1, "K": -1, "M": -1, "F": -1, "P": -2, "S": 0, "T": 0, "W": -2, "Y": -1, "V": -1, "B": -1, "Z": -1, "X": -1, "*": -4},
+    "*": {"A": -4, "R": -4, "N": -4, "D": -4, "C": -4, "Q": -4, "E": -4, "G": -4, "H": -4, "I": -4, "L": -4, "K": -4, "M": -4, "F": -4, "P": -4, "S": -4, "T": -4, "W": -4, "Y": -4, "V": -4, "B": -4, "Z": -4, "X": -4, "*": 1}
+}
+
+
+# --- UTILITY FUNCTIONS ---
+
+# Function to read sequences from a FASTA file
+def read_fasta(file_path):
+    """Reads sequences from a FASTA file and returns a dictionary
+    of {sequence_name: sequence_string}.
+    """
+    sequences = {}
+    seq_name = ""
+    seq = []
+
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                line = line.strip()
+                if not line:
+                    continue
+
+                if line.startswith(">"):
+                    if seq_name:
+                        sequences[seq_name] = "".join(seq)
+                    seq_name = line.lstrip(">").strip()
+                    seq = []
+                else:
+                    seq.append(line.upper())
+
+            if seq_name:
+                sequences[seq_name] = "".join(seq)
+
+    except FileNotFoundError:
+        print(f"Error: File not found at path: {file_path}")
+        return None
+
+    return sequences
+
+# Function to safely retrieve the match score and translated character
+def get_match_score(dna_seq, i, p_char, scoring_matrix):
+    """
+    Calculates the substitution score for the codon ending at DNA index i against p_char.
+    Returns (-inf, None) if i does not end a valid codon (i must be a multiple of 3).
+    """
+    codon_len = 3
+    # Check if i ends a codon (index i corresponds to the end of the codon)
+    if i < codon_len:
+        return -float('inf'), None
+
+    codon_start_idx = i - codon_len
+    codon = dna_seq[codon_start_idx:i]
+
+    t_char = CODON_TABLE.get(codon, '*')
+
+    # Safely get substitution score
+    score = scoring_matrix.get(t_char, {}).get(p_char, scoring_matrix.get('X', {}).get(p_char, -10))
+    return score, t_char
+
+
+# --- ALIGNMENT CORE LOGIC ---
+
+def dna_protein_alignment(dna_seq, protein_seq, scoring_matrix, gap_open, gap_extend, frame_shift_penalty, alignment_type="local"):
+    """
+    Performs a three-frame DNA-to-Protein alignment using Dynamic Programming.
+    alignment_type: "local" (Smith-Waterman) or "global" (Needleman-Wunsch).
+    Covers affine gaps (within frames) and length-independent frame shifts (between frames).
+    """
+    n, m = len(dna_seq), len(protein_seq)
+
+    # DP matrices: S[r][i][j], D[r][i][j], I[r][i][j]
+    S = [[[0] * (m + 1) for _ in range(n + 1)] for _ in range(3)]
+    T = [[[0] * (m + 1) for _ in range(n + 1)] for _ in range(3)] # Traceback Matrix
+
+    # Affine Gap Trackers (initialized to -inf to force gap opening from S)
+    D = [[[-float('inf')] * (m + 1) for _ in range(n + 1)] for _ in range(3)] # Gap in Protein (AA deletion)
+    I = [[[-float('inf')] * (m + 1) for _ in range(n + 1)] for _ in range(3)] # Gap in DNA (Codon insertion)
+
+    # Move Codes for Traceback (must be unique)
+    START_MOVE = 0
+    MATCH_MOVE = 1
+    GAP_P_MOVE_S = 2     # Gap in Protein from S (open)
+    GAP_D_MOVE_S = 3     # Gap in DNA from S (open)
+    SHIFT_1_MOVE = 4     # Frame shift 1-base
+    SHIFT_2_MOVE = 5     # Frame shift 2-base
+    GAP_P_MOVE_D = 6     # Gap in Protein from D (extend)
+    GAP_D_MOVE_I = 7     # Gap in DNA from I (extend)
+
+    max_score = 0
+    max_r, max_i, max_j = 0, 0, 0
+
+    # --- Initialization (Needed for Global Alignment) ---
+    if alignment_type == "global":
+        # Global requires initial gap penalties along the edges.
+        # Gaps in DNA (Codons) for j=0: Must start in Frame 0.
+        for i in range(1, n + 1):
+            r = i % 3
+            if i >= 3 and r == 0:
+                score = S[0][i - 3][0] - gap_extend
+                if score < -gap_open:
+                    score = -gap_open - ((i // 3) * gap_extend)
+
+                S[0][i][0] = score
+                I[0][i][0] = score
+                T[0][i][0] = GAP_D_MOVE_I
+
+        # Gaps in Protein (AAs) for i=0: All frames are equivalent at i=0.
+        for j in range(1, m + 1):
+            score = S[r][0][j-1] - gap_extend
+            if score < -gap_open:
+                score = -gap_open - ((j) * gap_extend)
+
+            for r in range(3):
+                S[r][0][j] = score
+                D[r][0][j] = score
+                T[r][0][j] = GAP_P_MOVE_D
+
+    # --- Matrix Filling (Forward Pass) ---
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            p_char = protein_seq[j-1]
+
+            for r in range(3): # Current Frame r
+
+                # Initialize all move scores to negative infinity
+                score_diag = -float('inf')
+                score_gap_p_open = -float('inf')
+                score_gap_p_extend = -float('inf')
+                score_gap_d_open = -float('inf')
+                score_gap_d_extend = -float('inf')
+                score_gap_d = -float('inf')
+                score_shift_1 = -float('inf')
+                score_shift_2 = -float('inf')
+
+                # --- A. Codon-based Match/Mismatch ---
+                i_end_codon = i - r
+                sub_score, _ = get_match_score(dna_seq, i_end_codon, p_char, scoring_matrix)
+
+                if sub_score > -float('inf'):
+                    i_prev_match = i_end_codon - 3
+
+                    if i_prev_match >= 0 and j - 1 >= 0:
+                        max_prev_score_s = max(S[r_prev][i_prev_match][j-1] for r_prev in range(3))
+                        score_diag = max_prev_score_s + sub_score
+
+                # --- B. Gap in Protein (1 AA deletion, affine) ---
+                score_gap_p_open = S[r][i][j-1] - gap_open
+                score_gap_p_extend = D[r][i][j-1] - gap_extend
+                score_gap_p = max(score_gap_p_open, score_gap_p_extend)
+                D[r][i][j] = score_gap_p
+
+                # --- C. Gap in DNA (3 base insertion, affine) ---
+                i_prev_codon = i - 3
+                if i_prev_codon >= 0:
+                    score_gap_d_open = S[r][i_prev_codon][j] - gap_open
+                    score_gap_d_extend = I[r][i_prev_codon][j] - gap_extend
+                    score_gap_d = max(score_gap_d_open, score_gap_d_extend)
+                I[r][i][j] = score_gap_d
+
+                # --- D. Frame Shift Transitions (Length-Independent Penalty) ---
+
+                # Shift 1-base: from r-1 (mod 3) at i-1
+                if i - 1 >= 0:
+                    r_prev_1 = (r - 1) % 3
+                    score_shift_1 = S[r_prev_1][i-1][j] - frame_shift_penalty
+
+                # Shift 2-bases: from r-2 (mod 3) at i-2
+                if i - 2 >= 0:
+                    r_prev_2 = (r - 2) % 3
+                    score_shift_2 = S[r_prev_2][i-2][j] - frame_shift_penalty
+
+                # --- E. Final Score and Traceback Decision ---
+                scores = [
+                    0 if alignment_type == "local" else -float('inf'), # START_MOVE
+                    score_diag,                                       # MATCH_MOVE
+                    score_gap_p_open, score_gap_d_open,               # GAP_P_MOVE_S, GAP_D_MOVE_S
+                    score_shift_1, score_shift_2,                     # SHIFT_1_MOVE, SHIFT_2_MOVE
+                    score_gap_p_extend, score_gap_d_extend            # GAP_P_MOVE_D, GAP_D_MOVE_I
+                ]
+
+                S[r][i][j] = max(scores)
+
+                # Map the max score back to the correct MOVE code
+                if S[r][i][j] == scores[0]: T[r][i][j] = START_MOVE
+                elif S[r][i][j] == scores[1]: T[r][i][j] = MATCH_MOVE
+                elif S[r][i][j] == scores[2]: T[r][i][j] = GAP_P_MOVE_S
+                elif S[r][i][j] == scores[3]: T[r][i][j] = GAP_D_MOVE_S
+                elif S[r][i][j] == scores[4]: T[r][i][j] = SHIFT_1_MOVE
+                elif S[r][i][j] == scores[5]: T[r][i][j] = SHIFT_2_MOVE
+                elif S[r][i][j] == scores[6]: T[r][i][j] = GAP_P_MOVE_D
+                elif S[r][i][j] == scores[7]: T[r][i][j] = GAP_D_MOVE_I
+                else: T[r][i][j] = START_MOVE
+
+                if S[r][i][j] > max_score and alignment_type == "local":
+                    max_score = S[r][i][j]
+                    max_r, max_i, max_j = r, i, j
+
+    # For Global Alignment, the optimal score is at the end of the full sequence in any frame
+    if alignment_type == "global":
+        max_score = -float('inf')
+        for r_final in range(3):
+            if S[r_final][n][m] > max_score:
+                max_score = S[r_final][n][m]
+                max_r, max_i, max_j = r_final, n, m
+
+    # --- Traceback (Backward Pass) ---
+    aligned_dna_pieces = []
+    aligned_protein = []
+    aligned_trans_protein = []
+
+    r, i, j = max_r, max_i, max_j
+
+    while (alignment_type == "local" and S[r][i][j] > 0) or \
+          (alignment_type == "global" and (i > 0 or j > 0)):
+
+        move = T[r][i][j]
+
+        if move == START_MOVE:
+            break
+
+        elif move == MATCH_MOVE:
+            p_char = protein_seq[j-1]
+            i_end_codon = i - r
+            i_prev_match = i_end_codon - 3
+
+            # Find the optimal previous frame r_prev
+            max_prev_score = -float('inf')
+            max_prev_r = r
+
+            for r_prev in range(3):
+                sub_score, _ = get_match_score(dna_seq, i_end_codon, p_char, scoring_matrix)
+
+                if i_prev_match >= 0 and j - 1 >= 0:
+                    current_score = S[r_prev][i_prev_match][j-1] + sub_score
+                else:
+                    current_score = -float('inf')
+
+                if current_score > max_prev_score:
+                    max_prev_score = current_score
+                    max_prev_r = r_prev
+
+            codon = dna_seq[i_end_codon - 3:i_end_codon]
+            _, t_char_final = get_match_score(dna_seq, i_end_codon, p_char, scoring_matrix)
+
+            # Alignment storage
+            aligned_dna_pieces.append(codon)
+            aligned_protein.append(protein_seq[j-1])
+            aligned_trans_protein.append(t_char_final)
+
+            # Update indices for next step
+            j -= 1
+            i = i_prev_match
+            r = max_prev_r
+
+        # FIXED: Removed the undefined GAP_P_MOVE_I
+        elif move in [GAP_P_MOVE_S, GAP_P_MOVE_D]: # Protein gap (AA deletion)
+            aligned_dna_pieces.append('---')
+            aligned_protein.append(protein_seq[j-1])
+            aligned_trans_protein.append('X')
+            j -= 1
+
+        elif move in [GAP_D_MOVE_S, GAP_D_MOVE_I]: # DNA gap (Codon insertion)
+            codon_start_idx = i - 3
+            codon = dna_seq[codon_start_idx:i]
+
+            aligned_dna_pieces.append(codon)
+            aligned_protein.append('-')
+            aligned_trans_protein.append('-')
+
+            i -= 3
+
+        elif move == SHIFT_1_MOVE:
+            r_prev = (r - 1) % 3
+            aligned_dna_pieces.append(dna_seq[i-1] + '--')
+            aligned_protein.append('-')
+            aligned_trans_protein.append('~')
+
+            i -= 1
+            r = r_prev
+
+        elif move == SHIFT_2_MOVE:
+            r_prev = (r - 2) % 3
+            aligned_dna_pieces.append(dna_seq[i-2:i] + '-')
+            aligned_protein.append('-')
+            aligned_trans_protein.append('~')
+
+            i -= 2
+            r = r_prev
+
+        else:
+            break
+
+    # Reverse and join the sequences
+    final_dna = ''.join(aligned_dna_pieces[::-1])
+    final_protein = ''.join(aligned_protein[::-1])
+    final_trans_protein = ''.join(aligned_trans_protein[::-1])
+
+    return final_dna, final_protein, final_trans_protein, max_score
+
+# Function to display the aligned sequences in conventional pairs of lines format
+def display_three_frame_alignment(aligned_dna, aligned_protein, aligned_trans_protein, max_score, block_size=60, alignment_type="Local"):
+    """
+    Displays the three-line alignment (Protein, Relationship, DNA) in blocks.
+    """
+    print(f"\n--- Best {alignment_type} Alignment Score: {max_score} ---")
+    print(f"Alignment Length (Protein Chars): {len(aligned_protein)}")
+
+    # Create the relationship line
+    relationship_line = []
+    for t_char, p_char in zip(aligned_trans_protein, aligned_protein):
+        # Determine the relationship symbol
+        if p_char == '-' and t_char == '-':
+            relationship_line.append(' ')
+        elif p_char != '-' and t_char == 'X':
+            relationship_line.append(' ')
+        elif t_char == '~':
+            relationship_line.append(' ')
+        elif t_char == p_char:
+            relationship_line.append('|') # Match
+        elif t_char != p_char and p_char != '-' and t_char != 'X':
+            relationship_line.append(':') # Mismatch
+        else:
+            relationship_line.append(' ')
+
+    relationship_line = ''.join(relationship_line)
+
+    for k in range(0, len(aligned_protein), block_size):
+        end_k = min(k + block_size, len(aligned_protein))
+
+        block_p = aligned_protein[k:end_k]
+        block_rel = relationship_line[k:end_k]
+
+        start_d = k * 3
+        end_d = end_k * 3
+
+        block_d = aligned_dna[start_d:end_d]
+
+        print("\n" + "="*80)
+        print(f"Block {k // block_size + 1} (Protein Positions {k+1}-{end_k})")
+
+        # Conventional pairs of lines format: aligned sequences above each other.
+        print(f"Protein:      {block_p}")
+        print(f"              {block_rel}")
+        print(f"DNA:          {block_d}")
+
+# Main function to run the program
+# Main function to run the program
+def main():
+    # --- CONFIGURATION: Define file paths ---
+    dna_file_path = "/content/gdrive/MyDrive/biol501/dna.fasta"
+    protein_file_path = "/content/gdrive/MyDrive/biol501/protein.fasta"
+
+    # --- Alignment Parameters ---
+    GAP_OPEN = 11
+    GAP_EXTEND = 1
+    FRAME_SHIFT_PENALTY = 8
+
+    # --- 1. Sequence Information and Data Loading ---
+    print("--- 1. Loading Sequences from FASTA Files ---")
+    
+    # Load DNA sequence
+    dna_data = read_fasta(dna_file_path)
+    if not dna_data:
+        # read_fasta prints an error, just stop here.
+        return
+    
+    # Assume the first sequence in the file is the one to use
+    dna_name, dna_sequence = list(dna_data.items())[0]
+
+    # Load Protein sequence
+    protein_data = read_fasta(protein_file_path)
+    if not protein_data:
+        return
+        
+    # Assume the first sequence in the file is the one to use
+    protein_name, protein_sequence = list(protein_data.items())[0]
+
+    print(f"Loaded DNA Sequence ('{dna_name}'): Length {len(dna_sequence)}")
+    print(f"Loaded Protein Sequence ('{protein_name}'): Length {len(protein_sequence)}")
+    print("-" * 40)
+    
+    # --- 2. Perform Three-Frame Local Alignment (Smith-Waterman) ---
+    print("\n" + "#" * 80)
+    print("## 2. Local Alignment (Smith-Waterman) - Base Requirement")
+    print("#" * 80)
+
+    # *** CORRECT: Passing the actual loaded sequence strings ***
+    aligned_dna_L, aligned_protein_L, aligned_trans_protein_L, max_score_L = dna_protein_alignment(
+        dna_sequence, protein_sequence, BLOSUM62, GAP_OPEN, GAP_EXTEND, FRAME_SHIFT_PENALTY, alignment_type="local"
+    )
+
+    # --- 3. Display Local Alignment Results ---
+    display_three_frame_alignment(
+        aligned_dna_L, aligned_protein_L, aligned_trans_protein_L, max_score_L, alignment_type="Local"
+    )
+
+    # --- 4. Perform Three-Frame Global Alignment (Needleman-Wunsch) ---
+    print("\n\n" + "#" * 80)
+    print("## 4. Global Alignment (Needleman-Wunsch) - Bonus +10 pts")
+    print("#" * 80)
+
+    # *** CORRECT: Passing the actual loaded sequence strings ***
+    aligned_dna_G, aligned_protein_G, aligned_trans_protein_G, max_score_G = dna_protein_alignment(
+        dna_sequence, protein_sequence, BLOSUM62, GAP_OPEN, GAP_EXTEND, FRAME_SHIFT_PENALTY, alignment_type="global"
+    )
+
+    # --- 5. Display Global Alignment Results ---
+    display_three_frame_alignment(
+        aligned_dna_G, aligned_protein_G, aligned_trans_protein_G, max_score_G, alignment_type="Global"
+    )
+
+if __name__ == "__main__":
+    main()

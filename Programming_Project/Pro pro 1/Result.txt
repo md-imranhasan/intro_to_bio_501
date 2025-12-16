@@ -1,0 +1,49 @@
+--- 1. Loading Sequences from FASTA Files ---
+Loaded DNA Sequence ('AH002844.2 Homo sapiens insulin (INS) gene, complete cds'): Length 4969
+Loaded Protein Sequence ('AAA59172.1 insulin [Homo sapiens]'): Length 110
+----------------------------------------
+
+################################################################################
+## 2. Local Alignment (Smith-Waterman) - Base Requirement
+################################################################################
+
+--- Best Local Alignment Score: 412 ---
+Alignment Length (Protein Chars): 109
+
+================================================================================
+Block 1 (Protein Positions 1-60)
+Protein:      MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAED
+              ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+DNA:          ATGGCCCTGTGGATGCGCCTCCTGCCCCTGCTGGCGCTGCTGGCCCTCTGGGGACCTGACCCAGCCGCAGCCTTTGTGAACCAACACCTGTGCGGCTCACACCTGGTGGAAGCTCTCTACCTAGTGTGCGGGGAACGAGGCTTCTTCTACACACCCAAGACCCGCCGGGAGGCAGAGGAC
+
+================================================================================
+Block 2 (Protein Positions 61-109)
+Protein:      LQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYC
+              |||:|::|:|:|::::|:|:|:||:|::||    :||:::||::|:::|
+DNA:          CTGCAGGTGAGCCAAGCCCATCTGCCTGGCGCCCCAGCCACCCCTGCTCTGCGCCCCACCGCAGGCGAAGGGGGACTGCACCAGAGGGGG------------TCATGCACTTTTTTAAAGAGTCTCTGGACGCTAAAGACCCTCTGT
+
+
+################################################################################
+## 4. Global Alignment (Needleman-Wunsch) - Bonus +10 pts
+################################################################################
+
+--- Best Global Alignment Score: 181 ---
+Alignment Length (Protein Chars): 141
+
+================================================================================
+Block 1 (Protein Positions 1-60)
+Protein:      MALWMRLLPLLALLALWGPDPAAAFVNQHL-CGSHLVEALYLVCGERGFFYTP---KTRR
+              :|:|:||||:::|:::|:::|::::::|:: :||:|:::::|::::|||::||   |:||
+DNA:          ATCGCTAACTGGAGCAGGTTGCTGCCGATGGCACCATTGACTCCAGCCTGGAACGAGAAACCGTCAAAAAAAACAAAACAACAACAAAAAAAGCAGGGGTCTGGTCTGACACAGACAATCTGGCTGGCCTCACAGGGAAGGGGTTTTAGCTTTACCCCACCAGCATCCAAGAGCAGGAGG
+
+================================================================================
+Block 2 (Protein Positions 61-120)
+Protein:      EAEDL---QVGQVELGGGPGAGSLQPLALEGS---LQKRGIVEQCCTSICSLYQLEN---
+              |::::   |:|::::||||::::|::|||:|:   ||:|:::|:|::|:||:::|||   
+DNA:          GAAACCCAGGCAATCAGCTCAGAACAGGAAGGCGAAATTCAGAGTGGCGGGGGCCCTAAGGTGTCCGCCTTGCTGGCACTGGCCTTGGATGGTATAGGGCCCCCACTGCAGATGAGATCCGCCCTGGAATCTTGCCTGAGCTCCCTCTGTTCATGGCACAGGCTGGAAAACCAGAGTCCT
+
+================================================================================
+Block 3 (Protein Positions 121-141)
+Protein:      ----------------Y--CN
+                              :  |:
+DNA:          CCCAGGCAGCAAGTTTTGTTTTGTTTTTTGTTTGTTTGCTTGTTTGTTTTTAGAGTCTGCCGT
